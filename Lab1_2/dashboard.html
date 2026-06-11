@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plain-English Findings Dashboard</title>
+  <style>
+    /* ── Reset scoped to dashboard-root only ── */
+    .dashboard-root *, .dashboard-root *::before, .dashboard-root *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ── Design tokens ── */
+    .dashboard-root {
+      --bg: #f4efe7;
+      --bg-2: #efe6d9;
+      --panel: rgba(255,255,255,0.82);
+      --panel-strong: #ffffff;
+      --ink: #152129;
+      --muted: #5f6f75;
+      --line: rgba(21,33,41,0.12);
+      --accent: #0f766e;
+      --accent-2: #c75c1c;
+      --accent-3: #8f6b27;
+      --good: #2f855a;
+      --warn: #c05621;
+      --shadow: 0 24px 60px rgba(21,33,41,0.12);
+
+      /* ── Layout base ── */
+      position: relative;
+      overflow: hidden;
+      font-family: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left,  rgba(15,118,110,0.16), transparent 32%),
+        radial-gradient(circle at top right, rgba(199,92,28,0.13),  transparent 30%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
+      border-radius: 16px;
+      padding-bottom: 44px;
+    }
+
+    /* ── Grid overlay ── */
+    .dashboard-root .bg-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(21,33,41,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(21,33,41,0.025) 1px, transparent 1px);
+      background-size: 38px 38px;
+      -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.2), transparent 92%);
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.2), transparent 92%);
+      z-index: 0;
+    }
+
+    /* ── Page shell ── */
+    .dashboard-root .page-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding-top: 28px;
+    }
+
+    /* ── Hero ── */
+    .dashboard-root .hero {
+      display: grid;
+      grid-template-columns: 1.5fr 0.85fr;
+      gap: 22px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,255,255,0.72));
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dashboard-root .hero::after {
+      content: "";
+      position: absolute;
+      right: -90px; top: -90px;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15,118,110,0.15), transparent 68%);
+    }
+
+    .dashboard-root .eyebrow,
+    .dashboard-root .section-heading p {
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--accent-2);
+    }
+
+    .dashboard-root .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 4.5rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      max-width: 12ch;
+    }
+
+    .dashboard-root .hero-text,
+    .dashboard-root .section-lead,
+    .dashboard-root .callout p,
+    .dashboard-root .insight-box p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .dashboard-root .hero-text {
+      max-width: 64ch;
+      margin-top: 18px;
+      font-size: 1.04rem;
+    }
+
+    .dashboard-root .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .dashboard-root .hero-tags span,
+    .dashboard-root .insight-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(21,33,41,0.05);
+      border: 1px solid rgba(21,33,41,0.08);
+      font-size: 0.93rem;
+    }
+
+    .dashboard-root .hero-panel {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .dashboard-root .panel-stat {
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 30px rgba(21,33,41,0.08);
+    }
+
+    .dashboard-root .panel-stat strong {
+      display: block;
+      font-size: 2.1rem;
+      line-height: 1;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+
+    .dashboard-root .panel-stat span {
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── KPI grid ── */
+    .dashboard-root .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 16px;
+      margin: 18px 0;
+    }
+
+    .dashboard-root .kpi-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 32px rgba(21,33,41,0.08);
+    }
+
+    .dashboard-root .kpi-card .label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    .dashboard-root .kpi-card .value {
+      display: block;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .dashboard-root .kpi-card .note {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    /* ── Content grid ── */
+    .dashboard-root .content-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 16px;
+    }
+
+    .dashboard-root .story-card {
+      padding: 22px;
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 16px 44px rgba(21,33,41,0.08);
+    }
+
+    .dashboard-root .story-card-wide {
+      grid-column: 1 / -1;
+    }
+
+    .dashboard-root .section-heading h2 {
+      font-size: clamp(1.45rem, 2.2vw, 2rem);
+      letter-spacing: -0.03em;
+    }
+
+    .dashboard-root .section-lead {
+      margin-top: 12px;
+      max-width: 75ch;
+    }
+
+    /* ── Season strip ── */
+    .dashboard-root .season-strip {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .dashboard-root .month-tile {
+      position: relative;
+      min-height: 92px;
+      border-radius: 18px;
+      padding: 12px 10px;
+      border: 1px solid rgba(21,33,41,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(243,236,227,0.9));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    .dashboard-root .month-tile::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: calc(var(--level) * 18%);
+      border-radius: 18px 18px 0 0;
+      background: linear-gradient(180deg, rgba(15,118,110,0.18), rgba(15,118,110,0.95));
+    }
+
+    .dashboard-root .month-tile.high::after {
+      background: linear-gradient(180deg, rgba(199,92,28,0.18), rgba(199,92,28,0.96));
+    }
+
+    .dashboard-root .month-tile.peak::after {
+      background: linear-gradient(180deg, rgba(176,38,38,0.18), rgba(176,38,38,0.96));
+    }
+
+    .dashboard-root .month-tile span,
+    .dashboard-root .month-tile strong {
+      position: relative;
+      z-index: 1;
+    }
+
+    .dashboard-root .month-tile span {
+      font-size: 0.83rem;
+      color: var(--muted);
+    }
+
+    .dashboard-root .month-tile strong {
+      font-size: 1rem;
+    }
+
+    /* ── Callouts ── */
+    .dashboard-root .story-callouts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .dashboard-root .callout {
+      padding: 16px;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.8);
+    }
+
+    .dashboard-root .callout span {
+      display: block;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .dashboard-root .callout strong {
+      display: block;
+      font-size: 1.08rem;
+      margin-bottom: 8px;
+    }
+
+    .dashboard-root .callout-warning span { color: var(--warn); }
+    .dashboard-root .callout-good    span { color: var(--good); }
+
+    /* ── Bar lists ── */
+    .dashboard-root .bar-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .dashboard-root .bar-item {
+      display: grid;
+      grid-template-columns: minmax(0,120px) 1fr 52px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .dashboard-root .bar-label { font-weight: 700; font-size: 0.92rem; }
+
+    .dashboard-root .bar-track {
+      position: relative;
+      height: 16px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(21,33,41,0.08);
+    }
+
+    .dashboard-root .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), #55b5ad);
+      transition: width 0.8s cubic-bezier(.22,.68,0,1.2);
+    }
+
+    .dashboard-root .bar-fill.missing {
+      background: linear-gradient(90deg, var(--accent-2), #e29a65);
+    }
+
+    .dashboard-root .bar-value {
+      text-align: right;
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .dashboard-root .compact .bar-item {
+      grid-template-columns: minmax(0,94px) 1fr 56px;
+    }
+
+    /* ── Split layout ── */
+    .dashboard-root .split-layout {
+      display: grid;
+      grid-template-columns: 1.45fr 0.8fr;
+      gap: 18px;
+    }
+
+    /* ── Mini metrics ── */
+    .dashboard-root .mini-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .dashboard-root .mini-card {
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+    }
+
+    .dashboard-root .mini-card strong {
+      display: block;
+      font-size: 1.6rem;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .dashboard-root .mini-card span { color: var(--muted); line-height: 1.4; }
+
+    /* ── Insight box ── */
+    .dashboard-root .insight-box {
+      padding: 18px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(15,118,110,0.08), rgba(199,92,28,0.08));
+      border: 1px solid rgba(21,33,41,0.08);
+      align-self: start;
+    }
+
+    .dashboard-root .insight-box h3 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .dashboard-root .insight-box p + .insight-pill { margin-top: 12px; }
+    .dashboard-root .insight-pill + .insight-pill   { margin-top: 8px; display: block; }
+
+    /* ── Final note ── */
+    .dashboard-root .final-note {
+      background: linear-gradient(135deg, rgba(15,118,110,0.12), rgba(255,255,255,0.78));
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 1000px) {
+      .dashboard-root .hero,
+      .dashboard-root .content-grid,
+      .dashboard-root .split-layout {
+        grid-template-columns: 1fr;
+      }
+      .dashboard-root .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .dashboard-root .hero,
+      .dashboard-root .story-card { padding: 18px; border-radius: 22px; }
+      .dashboard-root .kpi-grid,
+      .dashboard-root .story-callouts,
+      .dashboard-root .mini-metrics { grid-template-columns: 1fr; }
+      .dashboard-root .season-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .dashboard-root .bar-item { grid-template-columns: 1fr; gap: 6px; }
+      .dashboard-root .bar-value { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="dashboard-root">
+  <div class="bg-grid"></div>
+
+  <div class="page-shell">
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">India Air Quality &amp; Crop Yield</p>
+        <h1>What the data says, in plain English</h1>
+        <p class="hero-text">
+          This dashboard turns the notebook into a short story: when the air gets worst,
+          which pollution signals matter most, what the crop data looks like, and where
+          the comparisons should be treated with caution.
+        </p>
+        <div class="hero-tags">
+          <span>Air quality</span>
+          <span>Crop production</span>
+          <span>Seasonal trends</span>
+          <span>Data quality</span>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="panel-stat">
+          <strong>26</strong>
+          <span>cities tracked in the air dataset</span>
+        </div>
+        <div class="panel-stat">
+          <strong>33</strong>
+          <span>states represented in the crop dataset</span>
+        </div>
+        <div class="panel-stat">
+          <strong>1</strong>
+          <span>year where both datasets overlap</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- KPI strip -->
+    <section class="kpi-grid" id="kpi-grid"></section>
+
+    <!-- Content -->
+    <main class="content-grid">
+
+      <!-- Seasonal pattern -->
+      <section class="story-card story-card-wide">
+        <div class="section-heading">
+          <p>Air quality story</p>
+          <h2>Pollution follows a predictable seasonal pattern</h2>
+        </div>
+        <p class="section-lead">
+          The notebook shows that air quality gets much worse from October onward, peaking in
+          November. The cleanest period is July to September, when monsoon rain helps clear the air.
+        </p>
+        <div class="season-strip" id="season-strip"></div>
+        <div class="story-callouts">
+          <div class="callout callout-warning">
+            <span>Worst months</span>
+            <strong>October to January</strong>
+            <p>Pollution builds as harvest activity and winter trapping both affect the air.</p>
+          </div>
+          <div class="callout callout-good">
+            <span>Cleanest months</span>
+            <strong>July to September</strong>
+            <p>Monsoon rains naturally suppress pollution during this stretch.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- AQI drivers -->
+      <section class="story-card">
+        <div class="section-heading">
+          <p>What drives AQI</p>
+          <h2>Fine dust and nitrogen gases matter most</h2>
+        </div>
+        <p class="section-lead">
+          AQI is most closely tied to tiny particles and traffic/combustion-related gases.
+          The smaller and smokier the pollution, the worse the overall air score.
+        </p>
+        <div class="bar-list" id="correlation-bars"></div>
+      </section>
+
+      <!-- Missing values -->
+      <section class="story-card">
+        <div class="section-heading">
+          <p>Data quality</p>
+          <h2>Some measurements are missing a lot</h2>
+        </div>
+        <p class="section-lead">
+          Missing values are not random. A few sensors appear far less complete than the rest,
+          so the notebook used median-based cleaning rather than forcing a false average.
+        </p>
+        <div class="bar-list compact" id="missing-bars"></div>
+      </section>
+
+      <!-- Crop story -->
+      <section class="story-card story-card-wide split-layout">
+        <div>
+          <div class="section-heading">
+            <p>Crop story</p>
+            <h2>The crop dataset is rich, but the numbers are very uneven</h2>
+          </div>
+          <p class="section-lead">
+            The crop file has a broad national view with many states, districts, and crop types.
+            It is complete enough to analyse, but area and production values are highly skewed —
+            averages alone hide the real pattern.
+          </p>
+          <div class="mini-metrics" id="crop-metrics"></div>
+        </div>
+        <aside class="insight-box">
+          <h3>Takeaway</h3>
+          <p>
+            Averages are not the best headline for this crop data. A small number of very large
+            records pull the mean upward, so the median and spread tell a truer story.
+          </p>
+          <div class="insight-pill">Area and production both have 40k+ outliers</div>
+          <div class="insight-pill">Production had a small 1.5% gap before cleaning</div>
+        </aside>
+      </section>
+
+      <!-- Limitations -->
+      <section class="story-card story-card-wide final-note">
+        <div class="section-heading">
+          <p>Important caution</p>
+          <h2>Limitations</h2>
+        </div>
+        <p class="section-lead">
+          The air dataset and crop dataset do not cover the same time span. They only overlap in
+          2015, so any link between air quality and crop output is suggestive, not definitive.
+          The safest conclusion is that seasonal pollution is real, crop data is uneven, and both
+          need careful interpretation.
+        </p>
+      </section>
+
+    </main>
+  </div><!-- /page-shell -->
+</div><!-- /dashboard-root -->
+
+<script>
+(function () {
+
+  /* ── KPI cards ── */
+  const kpis = [
+    { label: "Mean AQI (all cities)", value: "154",  note: "After capping values above 500",  color: "#c75c1c" },
+    { label: "Median AQI",            value: "118",  note: "Better represents a typical day", color: "#0f766e" },
+    { label: "Most polluted month",   value: "Nov",  note: "Mean AQI of 214",                 color: "#b02626" },
+    { label: "Cleanest month",        value: "Jul",  note: "Mean AQI of 111",                 color: "#2f855a" },
+  ];
+
+  const kpiGrid = document.getElementById("kpi-grid");
+  kpis.forEach(function (k) {
+    var card = document.createElement("div");
+    card.className = "kpi-card";
+    card.innerHTML =
+      '<p class="label">' + k.label + '</p>' +
+      '<span class="value" style="color:' + k.color + '">' + k.value + '</span>' +
+      '<p class="note">' + k.note + '</p>';
+    kpiGrid.appendChild(card);
+  });
+
+  /* ── Season strip ── */
+  var months = [
+    { name: "Jan", abbr: "J", aqi: 203.8,  cls: "peak" },
+    { name: "Feb", abbr: "F", aqi: 180.5,  cls: "high" },
+    { name: "Mar", abbr: "M", aqi: 150.8,  cls: "high" },
+    { name: "Apr", abbr: "A", aqi: 136.2,  cls: "" },
+    { name: "May", abbr: "M", aqi: 132.7,  cls: "" },
+    { name: "Jun", abbr: "J", aqi: 119.0,  cls: "" },
+    { name: "Jul", abbr: "J", aqi: 111.5,  cls: "" },
+    { name: "Aug", abbr: "A", aqi: 112.9,  cls: "" },
+    { name: "Sep", abbr: "S", aqi: 114.4,  cls: "" },
+    { name: "Oct", abbr: "O", aqi: 168.7,  cls: "high" },
+    { name: "Nov", abbr: "N", aqi: 214.3,  cls: "peak" },
+    { name: "Dec", abbr: "D", aqi: 207.3,  cls: "peak" },
+  ];
+
+  var maxAqi = Math.max.apply(null, months.map(function(m){ return m.aqi; }));
+  var strip  = document.getElementById("season-strip");
+
+  months.forEach(function (m) {
+    var level = Math.round((m.aqi / maxAqi) * 6);
+    var tile  = document.createElement("div");
+    tile.className = "month-tile" + (m.cls ? " " + m.cls : "");
+    tile.style.setProperty("--level", level);
+    tile.innerHTML =
+      '<span>' + m.name + '</span>' +
+      '<strong>' + Math.round(m.aqi) + '</strong>';
+    strip.appendChild(tile);
+  });
+
+  /* ── Correlation bars ── */
+  var corrData = [
+    { label: "PM2.5",  value: 0.81 },
+    { label: "PM10",   value: 0.57 },
+    { label: "NO2",    value: 0.71 },
+    { label: "CO",     value: 0.66 },
+    { label: "NOx",    value: 0.49 },
+    { label: "SO2",    value: 0.49 },
+  ];
+
+  var corrList = document.getElementById("correlation-bars");
+  corrData.forEach(function (d) {
+    var pct = Math.round(d.value * 100);
+    var el  = document.createElement("div");
+    el.className = "bar-item";
+    el.innerHTML =
+      '<span class="bar-label">' + d.label + '</span>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<span class="bar-value">r = ' + d.value.toFixed(2) + '</span>';
+    corrList.appendChild(el);
+  });
+
+  /* ── Missing value bars ── */
+  var missingData = [
+    { label: "Xylene",   pct: 61.3 },
+    { label: "PM10",     pct: 37.7 },
+    { label: "NH3",      pct: 34.9 },
+    { label: "Toluene",  pct: 27.2 },
+    { label: "Benzene",  pct: 19.0 },
+    { label: "AQI",      pct: 15.8 },
+    { label: "PM2.5",    pct: 15.5 },
+  ];
+
+  var missList = document.getElementById("missing-bars");
+  missingData.forEach(function (d) {
+    var el = document.createElement("div");
+    el.className = "bar-item";
+    el.innerHTML =
+      '<span class="bar-label">' + d.label + '</span>' +
+      '<div class="bar-track"><div class="bar-fill missing" style="width:' + d.pct + '%"></div></div>' +
+      '<span class="bar-value">' + d.pct + '%</span>';
+    missList.appendChild(el);
+  });
+
+  /* ── Crop mini metrics ── */
+  var cropMetrics = [
+    { value: "246k",  label: "total records" },
+    { value: "124",   label: "unique crops" },
+    { value: "1.5%",  label: "production missing" },
+  ];
+
+  var cropGrid = document.getElementById("crop-metrics");
+  cropMetrics.forEach(function (m) {
+    var card = document.createElement("div");
+    card.className = "mini-card";
+    card.innerHTML = '<strong>' + m.value + '</strong><span>' + m.label + '</span>';
+    cropGrid.appendChild(card);
+  });
+
+})();
+</script>
+
+</body>
+</html>
